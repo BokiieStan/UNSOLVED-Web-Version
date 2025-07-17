@@ -1,0 +1,23 @@
+Case File #001
+Victim: Richard Hawthorne
+Time of Death: Approximately 11:45 PM
+Location: Hawthorne Manor, Study
+
+Description:
+The victim was found slumped over his desk with a single gunshot wound to the temple. 
+No signs of forced entry. The murder weapon, a [? Weapon ?], was found at the scene.
+
+Suspects:
+- Victoria Hawthorne: Wife, beneficiary of large life insurance policy
+- James Caldwell: Business partner, had heated argument with victim earlier
+- Eleanor Vance: Maid, discovered the body
+- Thomas Reed: Gardener, seen near study window
+
+Key Evidence:
+- A torn love letter found in wastebasket
+- Footprints outside study window, size [? Shoe Size ?]
+- Financial documents showing massive debt
+- Half-empty whiskey glass with lipstick stain
+
+Conclusion:
+After reviewing the evidence, I believe the killer is [? Killer ?]. The motive was [? Motive ?].

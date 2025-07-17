@@ -1,0 +1,18 @@
+{
+  "Weapon": {
+    "choices": ["Revolver", "Pistol", "Shotgun", "Derringer"],
+    "correct": "Derringer"
+  },
+  "Shoe Size": {
+    "choices": ["Size 7", "Size 8", "Size 9", "Size 10"],
+    "correct": "Size 8"
+  },
+  "Killer": {
+    "choices": ["Victoria Hawthorne", "James Caldwell", "Eleanor Vance", "Thomas Reed"],
+    "correct": "Victoria Hawthorne"
+  },
+  "Motive": {
+    "choices": ["Money", "Revenge", "Jealousy", "Blackmail"],
+    "correct": "Jealousy"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "Dr. Evelyn Shaw": {
+    "Competition": "The department chair position is competitive, but not worth killing over.",
+    "Alibi": "I was in a faculty meeting until 1:20 PM.",
+    "Research": "Our research methods differed, but I respected his work."
+  },
+  "Robert Finch": {
+    "Grades": "I was failing, but he offered me extra credit to improve.",
+    "Alibi": "I was in the library studying for his exam.",
+    "Access": "As a TA, I had keys to his office."
+  },
+  "Miranda Graves": {
+    "Inheritance": "He cut me out after I dropped out of med school.",
+    "Alibi": "I was at a job interview across town.",
+    "Relationship": "We hadn't spoken in six months."
+  },
+  "Benjamin Stone": {
+    "Discovery": "I found him when I brought lab reports to sign.",
+    "Alibi": "I was setting up the afternoon lab until 1:25 PM.",
+    "Knowledge": "I knew he took his coffee black at 1:15 PM daily."
+  }
+}

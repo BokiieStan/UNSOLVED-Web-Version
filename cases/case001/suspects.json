@@ -1,0 +1,22 @@
+{
+  "Victoria Hawthorne": {
+    "Relationship": "We've been married for 15 years, though it hasn't been happy for the last 5.",
+    "Alibi": "I was in my room reading. The staff can confirm.",
+    "Argument": "We argued about his affair with that secretary."
+  },
+  "James Caldwell": {
+    "Relationship": "Business partners for a decade. Recently had financial disagreements.",
+    "Alibi": "I left the house at 10:30 PM. The driver can confirm.",
+    "Investment": "Richard was about to bankrupt us with his gambling debts."
+  },
+  "Eleanor Vance": {
+    "Relationship": "I've been the Hawthornes' maid for 7 years.",
+    "Alibi": "I was cleaning the silverware in the pantry.",
+    "Discovery": "I found him when I came to refill his whiskey glass."
+  },
+  "Thomas Reed": {
+    "Relationship": "I maintain the gardens. That's all.",
+    "Alibi": "I was in the greenhouse until midnight.",
+    "Footprints": "I did walk near the study earlier to trim the roses."
+  }
+}

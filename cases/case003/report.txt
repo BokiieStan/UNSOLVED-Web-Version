@@ -1,0 +1,23 @@
+Case File #003
+Victim: Professor Alistair Graves
+Time of Death: Approximately 1:30 PM
+Location: University Chemistry Lab
+
+Description:
+Professor Graves collapsed during a lecture. Autopsy reveals poisoning by [? Poison ?]. 
+The poison was likely administered through his coffee cup. 
+
+Suspects:
+- Dr. Evelyn Shaw: Colleague, competing for department chair
+- Robert Finch: Graduate student, failing professor's class
+- Miranda Graves: Daughter, recently disinherited
+- Benjamin Stone: Lab assistant, discovered body
+
+Key Evidence:
+- Mysterious powder in professor's drawer
+- Email threatening to expose research fraud
+- Coffee cup with residue
+- Surveillance showing person near office at [? Time ?]
+
+Conclusion:
+The murderer is [? Murderer ?]. The opportunity came from [? Opportunity ?].

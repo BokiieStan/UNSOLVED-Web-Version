@@ -1,0 +1,18 @@
+{
+  "Poison": {
+    "choices": ["Cyanide", "Arsenic", "Ricin", "Digitalis"],
+    "correct": "Ricin"
+  },
+  "Time": {
+    "choices": ["12:45 PM", "1:00 PM", "1:15 PM", "1:25 PM"],
+    "correct": "1:15 PM"
+  },
+  "Murderer": {
+    "choices": ["Dr. Evelyn Shaw", "Robert Finch", "Miranda Graves", "Benjamin Stone"],
+    "correct": "Robert Finch"
+  },
+  "Opportunity": {
+    "choices": ["Office visit", "Coffee delivery", "Lab session", "Lecture preparation"],
+    "correct": "Coffee delivery"
+  }
+}

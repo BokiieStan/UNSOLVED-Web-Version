@@ -1,0 +1,23 @@
+Case File #002
+Victim: None (Art theft)
+Time of Crime: Between 1:00 AM and 3:00 AM
+Location: Metropolitan Art Gallery
+
+Description:
+The priceless "Moonlight Sonata" painting was stolen last night. 
+Security systems were disabled using [? Method ?]. The gallery owner received a ransom note.
+
+Suspects:
+- Arthur Finch: Head of security, last to leave
+- Isabella Rossi: Art restorer, had access to security codes
+- Marcus Chen: Wealthy collector, made several offers for the painting
+- Olivia Vance: Disgruntled former employee
+
+Key Evidence:
+- Security footage showing shadowy figure
+- Paint residue matching gallery wall found on clothing
+- Ransom note with distinctive [? Handwriting ?]
+- Ticket stub for late-night train
+
+Conclusion:
+The thief is [? Thief ?]. The escape method was [? Escape ?].

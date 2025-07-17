@@ -1,0 +1,22 @@
+{
+  "Arthur Finch": {
+    "Security": "I did my rounds as always. Nothing seemed out of place.",
+    "Alibi": "I was at the all-night diner until 2 AM. Waitress can confirm.",
+    "System": "The security logs show no unauthorized access."
+  },
+  "Isabella Rossi": {
+    "Restoration": "I was working late on the Renaissance collection.",
+    "Alibi": "I left at 11 PM. The night guard saw me leave.",
+    "Access": "I have master keycard access for restoration purposes."
+  },
+  "Marcus Chen": {
+    "Interest": "I admire the piece but would never steal it.",
+    "Alibi": "I was at the opera until midnight, then home.",
+    "Offers": "I made fair offers that were rejected. That's business."
+  },
+  "Olivia Vance": {
+    "Termination": "I was fired unfairly three months ago.",
+    "Alibi": "I was at my sister's birthday party all evening.",
+    "Knowledge": "I know the security weaknesses, but I didn't exploit them."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "Method": {
+    "choices": ["Keycard duplicate", "Laser bypass", "Window entry", "Inside job"],
+    "correct": "Inside job"
+  },
+  "Handwriting": {
+    "choices": ["Block print", "Cursive", "Calligraphy", "Childlike"],
+    "correct": "Calligraphy"
+  },
+  "Thief": {
+    "choices": ["Arthur Finch", "Isabella Rossi", "Marcus Chen", "Olivia Vance"],
+    "correct": "Isabella Rossi"
+  },
+  "Escape": {
+    "choices": ["Service entrance", "Roof access", "Sewer tunnel", "Disguised as guard"],
+    "correct": "Service entrance"
+  }
+}
