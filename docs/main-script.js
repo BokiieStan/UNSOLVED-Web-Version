@@ -6,9 +6,9 @@ const gameState = {
     hallucinationTriggered: false,
     currentCase: null,
     cases: {
-        'case1': { name: 'The Midnight Murder', difficulty: 'Medium' },
-        'case2': { name: 'The Gallery Heist', difficulty: 'Hard' },
-        'case3': { name: 'The Poisoned Professor', difficulty: 'Easy' }
+        'case1': { name: 'The Midnight Murder', difficulty: 'Medium', description: 'A wealthy businessman found dead in his study. No signs of forced entry.' },
+        'case2': { name: 'The Gallery Heist', difficulty: 'Hard', description: 'A priceless painting stolen from a high-security art gallery.' },
+        'case3': { name: 'The Poisoned Professor', difficulty: 'Easy', description: 'A university professor found dead in his office. Foul play suspected.' }
     },
     collectedEvidence: [],
     achievements: new Set(),
@@ -16,7 +16,15 @@ const gameState = {
     soundEnabled: true,
     ttsEnabled: true,
     lastSanityEffect: 0,
-    currentSuspect: null
+    currentSuspect: null,
+    hintsUsed: 0,
+    maxHints: 3,
+    gameStartTime: Date.now(),
+    totalPlayTime: 0,
+    caseStartTime: null,
+    lastSaveTime: null,
+    consecutiveCorrectChoices: 0,
+    totalChoices: 0
 };
 
 // DOM Elements
@@ -72,7 +80,9 @@ const elements = {
     accuseModal: document.getElementById('accuse-modal'),
     suspectChoices: document.getElementById('suspect-choices'),
     achievementModal: document.getElementById('achievement-modal'),
-    achievementName: document.getElementById('achievement-name')
+    achievementName: document.getElementById('achievement-name'),
+    statsBtn: document.getElementById('stats-btn'),
+    statsBtnGame: document.getElementById('stats-btn-game')
 };
 
 // Audio Context
@@ -84,6 +94,16 @@ const soundBuffers = {};
 document.addEventListener('DOMContentLoaded', () => {
     initGame();
     setupEventListeners();
+    initAudio();
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    // Auto-save every 5 minutes
+    setInterval(() => {
+        if (gameState.currentCase) {
+            saveGame();
+        }
+    }, 300000);
 });
 
 function initGame() {
@@ -94,39 +114,54 @@ function initGame() {
             tagsCompleted: 0,
             totalTags: 0,
             evidenceCollected: 0,
-            suspectsInterviewed: new Set()
+            suspectsInterviewed: new Set(),
+            startTime: null,
+            completionTime: null,
+            hintsUsed: 0,
+            accuracy: 0
         };
     });
     
-    // Check for saved game
-    if (localStorage.getItem('unsolved_save')) {
+    // Load saved game if available
+    const savedGame = localStorage.getItem('unsolved_save');
+    if (savedGame) {
         elements.loadGameBtn.classList.remove('hidden');
     }
     
-    // Initialize audio
-    initAudio();
-    
-    // Show case selection
-    showCaseSelection();
-    
-    // Start clock
-    updateClock();
-    setInterval(updateClock, 1000);
+    // Initialize achievements
+    unlockAchievement('First Steps');
 }
 
 function setupEventListeners() {
     // Case selection
     elements.loadGameBtn.addEventListener('click', loadGame);
     elements.settingsBtn.addEventListener('click', () => toggleModal(elements.settingsModal));
+    elements.closeSettings.addEventListener('click', () => toggleModal(elements.settingsModal));
+    elements.statsBtn.addEventListener('click', showStatisticsModal);
+    
+    // Main game
+    elements.saveGameBtn.addEventListener('click', saveGame);
+    elements.quitGameBtn.addEventListener('click', showCaseSelection);
+    elements.viewEvidenceBtn.addEventListener('click', showEvidenceModal);
+    elements.closeEvidence.addEventListener('click', () => toggleModal(elements.evidenceModal));
+    elements.accuseBtn.addEventListener('click', showAccuseModal);
+    elements.closeInterview.addEventListener('click', () => toggleModal(elements.interviewModal));
+    elements.closeAccuse.addEventListener('click', () => toggleModal(elements.accuseModal));
+    elements.getHint.addEventListener('click', getHint);
+    elements.statsBtnGame.addEventListener('click', showStatisticsModal);
+    
+    // Statistics modal
+    const statsModal = document.getElementById('stats-modal');
+    const closeStats = document.getElementById('close-stats');
+    if (statsModal && closeStats) {
+        closeStats.addEventListener('click', () => toggleModal(statsModal));
+    }
     
     // Settings
     elements.soundToggle.addEventListener('change', (e) => {
         gameState.soundEnabled = e.target.checked;
-        if (gameState.soundEnabled && backgroundMusic) {
-            backgroundMusic.loop = true;
-            backgroundMusic.start();
-        } else if (backgroundMusic) {
-            backgroundMusic.stop();
+        if (!gameState.soundEnabled && backgroundMusic) {
+            backgroundMusic.pause();
         }
     });
     
@@ -134,41 +169,78 @@ function setupEventListeners() {
         gameState.ttsEnabled = e.target.checked;
     });
     
-    elements.closeSettings.addEventListener('click', () => toggleModal(elements.settingsModal));
+    // Tab switching
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            button.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        });
+    });
     
-    // Main game
-    elements.viewEvidenceBtn.addEventListener('click', showEvidenceModal);
-    elements.saveGameBtn.addEventListener('click', saveGame);
-    elements.quitGameBtn.addEventListener('click', showCaseSelection);
-    elements.accuseBtn.addEventListener('click', showAccuseModal);
-    elements.closeEvidence.addEventListener('click', () => toggleModal(elements.evidenceModal));
-    elements.closeInterview.addEventListener('click', () => toggleModal(elements.interviewModal));
+    // Close modals on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                toggleModal(modal);
+            }
+        });
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const openModal = document.querySelector('.modal:not(.hidden)');
+            if (openModal) {
+                toggleModal(openModal);
+            }
+        }
+        
+        if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (gameState.currentCase) {
+                saveGame();
+            }
+        }
+        
+        if (e.key === 'h' && gameState.currentCase) {
+            e.preventDefault();
+            getHint();
+        }
+    });
 }
 
 function initAudio() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // Preload sound effects
-        const soundFiles = [
-            'background', 'case_start', 'success', 
-            'error', 'evidence', 'hallucination',
-            'victory', 'failure', 'achievement'
-        ];
-        
-        soundFiles.forEach(sound => {
-            loadSound(`sounds/${sound}.mp3`).then(buffer => {
-                soundBuffers[sound] = buffer;
-            }).catch(() => {
-                loadSound(`sounds/${sound}.wav`).then(buffer => {
-                    soundBuffers[sound] = buffer;
-                });
-            });
-        });
-    } catch (e) {
-        console.error('Audio initialization failed:', e);
-        gameState.soundEnabled = false;
-        elements.soundToggle.checked = false;
+        loadSounds();
+    } catch (error) {
+        console.warn('Audio not supported:', error);
+    }
+}
+
+async function loadSounds() {
+    const soundFiles = [
+        'achievement.wav',
+        'background.mp3',
+        'case_start.wav',
+        'error.wav',
+        'evidence.wav',
+        'failure.wav',
+        'hallucination.wav',
+        'nightmare.wav',
+        'success.wav',
+        'victory.wav'
+    ];
+    
+    for (const soundFile of soundFiles) {
+        try {
+            await loadSound(`./sounds/${soundFile}`);
+        } catch (error) {
+            console.warn(`Failed to load sound: ${soundFile}`, error);
+        }
     }
 }
 
@@ -176,109 +248,166 @@ async function loadSound(url) {
     try {
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
-        return await audioContext.decodeAudioData(arrayBuffer);
-    } catch (e) {
-        console.error(`Error loading sound ${url}:`, e);
-        throw e;
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        soundBuffers[url.split('/').pop()] = audioBuffer;
+    } catch (error) {
+        console.warn(`Error loading sound ${url}:`, error);
     }
 }
 
 function playSound(name, loop = false) {
-    if (!gameState.soundEnabled || !soundBuffers[name]) return;
+    if (!gameState.soundEnabled || !audioContext || !soundBuffers[name]) {
+        return;
+    }
     
     try {
         const source = audioContext.createBufferSource();
         source.buffer = soundBuffers[name];
         source.connect(audioContext.destination);
-        source.loop = loop;
-        source.start();
         
-        if (name === 'background') {
+        if (loop) {
+            source.loop = true;
             backgroundMusic = source;
         }
         
-        return source;
-    } catch (e) {
-        console.error('Error playing sound:', e);
+        source.start();
+    } catch (error) {
+        console.warn('Error playing sound:', error);
     }
 }
 
 function speak(text) {
-    if (!gameState.ttsEnabled) return;
+    if (!gameState.ttsEnabled || !('speechSynthesis' in window)) {
+        return;
+    }
     
-    if ('speechSynthesis' in window) {
+    try {
         const utterance = new SpeechSynthesisUtterance(text);
-        
-        if (gameState.SANITY < 40) {
-            utterance.rate = 1.3;
-            utterance.pitch = 0.8;
-        } else {
-            utterance.rate = 1.7;
-        }
-        
-        window.speechSynthesis.speak(utterance);
+        utterance.rate = 0.8;
+        utterance.pitch = 0.9;
+        speechSynthesis.speak(utterance);
+    } catch (error) {
+        console.warn('TTS error:', error);
     }
 }
 
 function toggleModal(modal) {
-    modal.classList.toggle('hidden');
+    if (!modal) return;
+    
+    if (modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } else {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
 }
 
 function showCaseSelection() {
-    elements.caseSelection.classList.add('active');
     elements.mainGame.classList.remove('active');
+    elements.caseSelection.classList.add('active');
     
-    // Populate case grid
+    // Clear case-specific state
+    gameState.currentCase = null;
+    gameState.currentCaseData = null;
+    
+    // Update case grid with descriptions
+    updateCaseGrid();
+    
+    // Stop background music
+    if (backgroundMusic) {
+        backgroundMusic.pause();
+    }
+}
+
+function updateCaseGrid() {
     elements.caseGrid.innerHTML = '';
+    
     Object.entries(gameState.cases).forEach(([caseId, caseInfo]) => {
-        const caseBtn = document.createElement('button');
+        const caseBtn = document.createElement('div');
         caseBtn.className = 'case-btn';
-        caseBtn.innerHTML = `${caseInfo.name}<br>(${caseInfo.difficulty})`;
+        caseBtn.innerHTML = `
+            <h3>${caseInfo.name}</h3>
+            <p>${caseInfo.description}</p>
+            <span class="difficulty ${caseInfo.difficulty.toLowerCase()}">${caseInfo.difficulty}</span>
+        `;
+        
         caseBtn.addEventListener('click', () => startCase(caseId));
         elements.caseGrid.appendChild(caseBtn);
     });
-    
-    // Show load button if save exists
-    elements.loadGameBtn.classList.toggle('hidden', !localStorage.getItem('unsolved_save'));
 }
 
 async function startCase(caseId) {
     gameState.currentCase = caseId;
+    gameState.caseStartTime = Date.now();
+    gameState.caseProgress[caseId].startTime = Date.now();
+    
+    // Reset case-specific state
+    gameState.collectedEvidence = [];
     gameState.visitedTopics = new Set();
     gameState.hallucinationTriggered = false;
-    gameState.collectedEvidence = [];
-    gameState.chosen = {};
+    gameState.hintsUsed = 0;
+    gameState.consecutiveCorrectChoices = 0;
+    gameState.totalChoices = 0;
     
-    // Initialize case progress
-    const tags = await getCaseTags();
-    gameState.caseProgress[caseId] = {
-        solved: false,
-        tagsCompleted: 0,
-        totalTags: tags.size,
-        evidenceCollected: 0,
-        suspectsInterviewed: new Set()
-    };
-    
-    setupMainUI();
-    updateText();
-    
-    // Play case start sound
-    playSound('case_start');
-}
-
-function setupMainUI() {
+    // Update UI
     elements.caseSelection.classList.remove('active');
     elements.mainGame.classList.add('active');
+    elements.caseTitle.textContent = `🕵️ ${gameState.cases[caseId].name}`;
     
-    // Set case title
-    const caseInfo = gameState.cases[gameState.currentCase];
-    elements.caseTitle.textContent = `🕵️ ${caseInfo.name}`;
+    // Play case start sound
+    if (gameState.soundEnabled) {
+        playSound('case_start.wav');
+    }
     
-    // Update all UI elements
-    updateFileTags();
-    updateSuspectsList();
-    updateEvidenceButton();
-    updateProgressBar();
+    // Load case data
+    await loadCaseData(caseId);
+    
+    // Update hints display
+    updateHintsDisplay();
+    
+    // Add welcome dialogue
+    addDialogue(`> Case ${caseId.toUpperCase()} initiated. Good luck, detective.`);
+    
+    // Start background music
+    if (gameState.soundEnabled && backgroundMusic) {
+        backgroundMusic.play();
+    }
+    
+    // Unlock case-specific achievement
+    unlockAchievement(`Case ${caseId.toUpperCase()} Started`);
+}
+
+async function loadCaseData(caseId) {
+    try {
+        // Load all case data in parallel
+        const [tags, options, suspects, evidence, solution] = await Promise.all([
+            getCaseTags(caseId),
+            loadOptions(caseId),
+            loadSuspects(caseId),
+            loadEvidence(caseId),
+            loadSolution(caseId)
+        ]);
+        
+        // Store case data
+        gameState.currentCaseData = {
+            tags,
+            options,
+            suspects,
+            evidence,
+            solution
+        };
+        
+        // Update UI
+        updateFileTags();
+        updateSuspectsList();
+        updateEvidenceButton();
+        updateProgressBar();
+        
+    } catch (error) {
+        console.error('Error loading case data:', error);
+        addDialogue('> Error loading case data. Please try again.');
+    }
 }
 
 async function updateText() {
@@ -325,273 +454,218 @@ async function loadFile() {
     }
 }
 
-async function getCaseTags() {
+async function getCaseTags(caseId) {
     try {
-        const text = await loadFile();
-        const tags = new Set();
-        const regex = /\[\?\s*(.*?)\s*\?\]/g;
-        let match;
-        
-        while ((match = regex.exec(text)) !== null) {
-            tags.add(match[1].trim());
-        }
-        
-        return tags;
+        const response = await fetch(`./cases/${caseId}/options.json`);
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("Error getting tags:", error);
-        return new Set();
-    }
-}
-
-async function loadOptions() {
-    try {
-        const response = await fetch(`cases/${gameState.currentCase}/options.json`);
-        if (!response.ok) throw new Error("File not found");
-        return await response.json();
-    } catch (error) {
-        console.error("Error loading options:", error);
+        console.error('Error loading case tags:', error);
         return {};
     }
 }
 
-async function loadSuspects() {
+async function loadOptions(caseId) {
     try {
-        const response = await fetch(`cases/${gameState.currentCase}/suspects.json`);
-        if (!response.ok) throw new Error("File not found");
-        const suspects = await response.json();
-        
-        // Merge with DLC suspects if available
-        if (window.loadExtraSuspects) {
-            const extraSuspects = window.loadExtraSuspects();
-            return { ...suspects, ...extraSuspects };
-        }
-        
-        return suspects;
+        const response = await fetch(`./cases/${caseId}/options.json`);
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("Error loading suspects:", error);
+        console.error('Error loading options:', error);
         return {};
     }
 }
 
-async function loadEvidence() {
+async function loadSuspects(caseId) {
     try {
-        const response = await fetch(`cases/${gameState.currentCase}/evidence.json`);
-        if (!response.ok) throw new Error("File not found");
-        const evidence = await response.json();
-        
-        // Merge with DLC evidence if available
-        if (window.loadExtraEvidence) {
-            const extraEvidence = window.loadExtraEvidence();
-            return { ...evidence, ...extraEvidence };
-        }
-        
-        return evidence;
+        const response = await fetch(`./cases/${caseId}/suspects.json`);
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("Error loading evidence:", error);
+        console.error('Error loading suspects:', error);
         return {};
     }
 }
 
-async function loadSolution() {
+async function loadEvidence(caseId) {
     try {
-        const response = await fetch(`cases/${gameState.currentCase}/solution.json`);
-        if (!response.ok) throw new Error("File not found");
-        return await response.json();
+        const response = await fetch(`./cases/${caseId}/evidence.json`);
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error("Error loading solution:", error);
-        return { killer: "", motive: "" };
+        console.error('Error loading evidence:', error);
+        return {};
+    }
+}
+
+async function loadSolution(caseId) {
+    try {
+        const response = await fetch(`./cases/${caseId}/solution.json`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error loading solution:', error);
+        return {};
     }
 }
 
 function updateFileTags() {
-    elements.fileTags.innerHTML = '';
-    const tags = Array.from(getCaseTags());
+    if (!gameState.currentCaseData?.options) return;
     
-    tags.forEach(tag => {
-        const isCompleted = tag in gameState.chosen;
-        const tagBtn = document.createElement('button');
-        tagBtn.className = `file-tag ${isCompleted ? 'completed' : 'incomplete'}`;
-        tagBtn.textContent = `[${tag}]`;
-        tagBtn.addEventListener('click', () => chooseOption(tag));
-        elements.fileTags.appendChild(tagBtn);
+    elements.fileTags.innerHTML = '';
+    Object.keys(gameState.currentCaseData.options).forEach(tag => {
+        const tagElement = document.createElement('div');
+        tagElement.className = `file-tag ${gameState.chosen[tag] ? 'completed' : 'incomplete'}`;
+        tagElement.textContent = tag;
+        tagElement.addEventListener('click', () => chooseOption(tag));
+        elements.fileTags.appendChild(tagElement);
     });
 }
 
 async function chooseOption(tag) {
-    const options = await loadOptions();
-    if (!options || !options[tag]) {
-        addDialogue(`> No options available for [${tag}]`);
+    if (!gameState.currentCaseData?.options[tag]) {
+        addDialogue('> No options available for this file.');
         return;
     }
     
-    // Clear previous options
+    const options = gameState.currentCaseData.options[tag];
+    elements.optionTitle.textContent = `Select Option - ${tag}`;
     elements.optionButtons.innerHTML = '';
-    elements.optionTitle.textContent = `Select: ${tag}`;
     
-    // Add new options
-    options[tag].choices.forEach(choice => {
-        const btn = document.createElement('button');
-        btn.textContent = choice;
-        btn.addEventListener('click', () => selectOption(tag, choice, options[tag].correct));
-        elements.optionButtons.appendChild(btn);
+    options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.className = 'option-btn';
+        button.addEventListener('click', () => selectOption(tag, option, options.correctChoice));
+        elements.optionButtons.appendChild(button);
     });
     
     toggleModal(elements.optionModal);
 }
 
 function selectOption(tag, choice, correctChoice) {
-    toggleModal(elements.optionModal);
+    gameState.totalChoices++;
+    gameState.chosen[tag] = choice;
     
-    if (choice !== correctChoice) {
-        gameState.SANITY = Math.max(0, gameState.SANITY - 10);
-        addDialogue(`> Wrong: ${choice}`);
-        playSound('error');
+    const isCorrect = choice === correctChoice;
+    if (isCorrect) {
+        gameState.consecutiveCorrectChoices++;
+        gameState.SANITY = Math.min(100, gameState.SANITY + 5);
+        addDialogue('> Correct choice. Your deduction skills are sharp.');
+        unlockAchievement('Sharp Detective');
     } else {
-        gameState.caseProgress[gameState.currentCase].tagsCompleted++;
-        addDialogue(`> Correct: ${choice}`);
-        playSound('success');
-        
-        // Check for achievement
-        if (gameState.caseProgress[gameState.currentCase].tagsCompleted === 
-            gameState.caseProgress[gameState.currentCase].totalTags) {
-            unlockAchievement("Case Solver");
-        }
+        gameState.consecutiveCorrectChoices = 0;
+        gameState.SANITY = Math.max(0, gameState.SANITY - 10);
+        addDialogue('> Incorrect choice. Your sanity decreases.');
     }
     
-    gameState.chosen[tag] = choice;
-    speak(`${tag} set to ${choice}`);
-    updateText();
+    // Update accuracy
+    const currentCase = gameState.caseProgress[gameState.currentCase];
+    currentCase.accuracy = (gameState.consecutiveCorrectChoices / gameState.totalChoices) * 100;
+    
+    // Update UI
     updateFileTags();
-    saveGame();
+    updateProgressBar();
+    applySanityVisualEffects();
+    
+    // Close modal
+    toggleModal(elements.optionModal);
+    
+    // Check for achievements
+    if (gameState.consecutiveCorrectChoices >= 5) {
+        unlockAchievement('Unstoppable');
+    }
+    
+    if (gameState.SANITY <= 20) {
+        unlockAchievement('On the Edge');
+    }
 }
 
 async function updateSuspectsList() {
-    elements.suspectsList.innerHTML = '';
-    const suspects = await loadSuspects();
+    if (!gameState.currentCaseData?.suspects) return;
     
-    Object.keys(suspects).forEach(suspect => {
+    elements.suspectsList.innerHTML = '';
+    Object.keys(gameState.currentCaseData.suspects).forEach(suspect => {
+        const suspectElement = document.createElement('div');
         const isInterviewed = gameState.caseProgress[gameState.currentCase].suspectsInterviewed.has(suspect);
-        const suspectBtn = document.createElement('button');
-        suspectBtn.className = `suspect-btn ${isInterviewed ? 'interviewed' : 'not-interviewed'}`;
-        suspectBtn.textContent = suspect;
-        suspectBtn.addEventListener('click', () => talkTo(suspect, suspects));
-        elements.suspectsList.appendChild(suspectBtn);
+        suspectElement.className = `suspect-btn ${isInterviewed ? 'interviewed' : 'not-interviewed'}`;
+        suspectElement.textContent = suspect;
+        suspectElement.addEventListener('click', () => talkTo(suspect, gameState.currentCaseData.suspects));
+        elements.suspectsList.appendChild(suspectElement);
     });
 }
 
 async function talkTo(suspect, suspectsData) {
+    if (!suspectsData[suspect]) return;
+    
     gameState.currentSuspect = suspect;
     elements.suspectName.textContent = `Interview: ${suspect}`;
     elements.topicButtons.innerHTML = '';
-    elements.suspectResponse.textContent = '';
     
-    // Add topic buttons
     Object.keys(suspectsData[suspect]).forEach(topic => {
-        const btn = document.createElement('button');
-        btn.className = 'topic-btn';
-        btn.textContent = topic;
-        btn.addEventListener('click', () => discussTopic(topic, suspect, suspectsData));
-        elements.topicButtons.appendChild(btn);
+        const topicBtn = document.createElement('button');
+        topicBtn.className = 'topic-btn';
+        topicBtn.textContent = topic;
+        topicBtn.addEventListener('click', () => discussTopic(topic, suspect, suspectsData));
+        elements.topicButtons.appendChild(topicBtn);
     });
     
     toggleModal(elements.interviewModal);
 }
 
 async function discussTopic(topic, suspect, suspectsData) {
-    const isVisited = gameState.visitedTopics.has(topic);
-    let response;
+    const response = suspectsData[suspect][topic];
+    if (!response) return;
     
-    if (isVisited) {
-        response = "I've already told you about that.";
-    } else {
-        response = suspectsData[suspect][topic];
-        gameState.visitedTopics.add(topic);
-        
-        // Chance to find evidence
-        if (Math.random() < 0.3 && gameState.SANITY > 30) {
-            const evidence = await loadEvidence();
-            const evidenceKeys = Object.keys(evidence);
-            
-            if (evidenceKeys.length > 0) {
-                const newEvidence = evidenceKeys[Math.floor(Math.random() * evidenceKeys.length)];
-                
-                if (!gameState.collectedEvidence.includes(newEvidence)) {
-                    gameState.collectedEvidence.push(newEvidence);
-                    gameState.caseProgress[gameState.currentCase].evidenceCollected++;
-                    addDialogue(`> Found new evidence: ${newEvidence}`);
-                    playSound('evidence');
-                    updateEvidenceButton();
-                }
-            }
-        }
-    }
+    elements.suspectResponse.textContent = response;
     
-    const movement = ["nods", "shrugs", "taps desk", "leans forward", "glances away"][Math.floor(Math.random() * 5)];
-    const headMove = ["left", "right", "down", "up"][Math.floor(Math.random() * 4)];
-    
-    const line = `${suspect} (${movement}): ${response} They move their head ${headMove}.`;
-    elements.suspectResponse.textContent = line;
-    addDialogue(line);
-    speak(response);
-    
-    // Track interview progress
+    // Mark as interviewed
     gameState.caseProgress[gameState.currentCase].suspectsInterviewed.add(suspect);
-    saveGame();
     updateSuspectsList();
+    updateProgressBar();
     
-    // Update sanity based on topic
-    if (topic.toLowerCase().includes('murder') || topic.toLowerCase().includes('death')) {
-        gameState.SANITY = Math.max(0, gameState.SANITY - 2);
-        updateText();
+    // Add to dialogue
+    addDialogue(`> Interviewed ${suspect} about ${topic}.`);
+    
+    // Check for evidence collection
+    if (response.includes('evidence') || response.includes('clue')) {
+        const evidenceName = `${suspect}'s Testimony`;
+        if (!gameState.collectedEvidence.includes(evidenceName)) {
+            gameState.collectedEvidence.push(evidenceName);
+            addDialogue(`> Evidence collected: ${evidenceName}`);
+            updateEvidenceButton();
+            updateProgressBar();
+        }
     }
 }
 
 function updateEvidenceButton() {
     const evidenceCount = gameState.collectedEvidence.length;
-    elements.viewEvidenceBtn.textContent = `View Evidence (${evidenceCount})`;
-    
-    // Show accuse button if enough evidence collected
-    const evidenceData = loadEvidence().then(evidence => {
-        const totalEvidence = Object.keys(evidence).length;
-        elements.accuseBtn.classList.toggle('hidden', evidenceCount < totalEvidence * 0.8);
-    });
+    elements.viewEvidenceBtn.textContent = `View All (${evidenceCount})`;
 }
 
 async function showEvidenceModal() {
-    const evidence = await loadEvidence();
+    const evidenceData = gameState.currentCaseData?.evidence || {};
+    const allEvidence = Object.keys(evidenceData);
+    const collectedEvidence = gameState.collectedEvidence;
     
     // Update tab counts
-    document.querySelector('[data-tab="collected"]').textContent = 
-        `Collected (${gameState.collectedEvidence.length})`;
-    document.querySelector('[data-tab="all"]').textContent = 
-        `All Evidence (${Object.keys(evidence).length})`;
+    document.querySelector('[data-tab="collected"]').textContent = `Collected (${collectedEvidence.length})`;
+    document.querySelector('[data-tab="all"]').textContent = `All Evidence (${allEvidence.length})`;
     
     // Populate collected evidence
     elements.collectedEvidence.innerHTML = '';
-    gameState.collectedEvidence.forEach(evidenceName => {
-        if (evidence[evidenceName]) {
-            const item = createEvidenceItem(evidenceName, evidence[evidenceName]);
-            elements.collectedEvidence.appendChild(item);
-        }
+    collectedEvidence.forEach(evidence => {
+        const evidenceItem = createEvidenceItem(evidence, evidenceData[evidence] || 'No description available.');
+        elements.collectedEvidence.appendChild(evidenceItem);
     });
     
     // Populate all evidence
     elements.allEvidence.innerHTML = '';
-    Object.entries(evidence).forEach(([name, desc]) => {
-        const isCollected = gameState.collectedEvidence.includes(name);
-        const item = createEvidenceItem(name, desc, isCollected);
-        elements.allEvidence.appendChild(item);
-    });
-    
-    // Set up tab switching
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            btn.classList.add('active');
-            document.getElementById(`${btn.dataset.tab}-tab`).classList.add('active');
-        });
+    allEvidence.forEach(evidence => {
+        const isCollected = collectedEvidence.includes(evidence);
+        const evidenceItem = createEvidenceItem(evidence, evidenceData[evidence], isCollected);
+        elements.allEvidence.appendChild(evidenceItem);
     });
     
     toggleModal(elements.evidenceModal);
@@ -599,99 +673,150 @@ async function showEvidenceModal() {
 
 function createEvidenceItem(name, description, isCollected = true) {
     const item = document.createElement('div');
-    item.className = 'evidence-item';
-    
-    const title = document.createElement('h4');
-    title.textContent = `${isCollected ? '✅' : '❌'} ${name}`;
-    title.style.color = isCollected ? '#aaa' : '#444';
-    
-    const desc = document.createElement('p');
-    desc.textContent = description;
-    desc.style.color = isCollected ? '#aaa' : '#444';
-    
-    item.appendChild(title);
-    item.appendChild(desc);
+    item.className = `evidence-item ${isCollected ? 'collected' : 'uncollected'}`;
+    item.innerHTML = `
+        <h4>${name}</h4>
+        <p>${description}</p>
+    `;
     return item;
 }
 
 async function showAccuseModal() {
-    elements.suspectChoices.innerHTML = '';
-    const suspects = await loadSuspects();
+    if (!gameState.currentCaseData?.suspects) return;
     
-    Object.keys(suspects).forEach(suspect => {
-        const btn = document.createElement('button');
-        btn.textContent = suspect;
-        btn.addEventListener('click', () => finalizeAccusation(suspect));
-        elements.suspectChoices.appendChild(btn);
+    elements.suspectChoices.innerHTML = '';
+    Object.keys(gameState.currentCaseData.suspects).forEach(suspect => {
+        const suspectBtn = document.createElement('button');
+        suspectBtn.className = 'suspect-choice-btn';
+        suspectBtn.textContent = suspect;
+        suspectBtn.addEventListener('click', () => finalizeAccusation(suspect));
+        elements.suspectChoices.appendChild(suspectBtn);
     });
     
     toggleModal(elements.accuseModal);
 }
 
 async function finalizeAccusation(suspect) {
-    toggleModal(elements.accuseModal);
-    const solution = await loadSolution();
-    const realKiller = solution.killer || "";
+    const solution = gameState.currentCaseData?.solution;
+    if (!solution) return;
     
-    if (suspect === realKiller) {
-        addDialogue(`> CORRECT! ${suspect} is the killer! Case solved.`);
-        gameState.caseProgress[gameState.currentCase].solved = true;
-        playSound('victory');
-        unlockAchievement("Master Detective");
+    const isCorrect = solution.killer === suspect;
+    
+    if (isCorrect) {
+        addDialogue(`> Correct! ${suspect} was the killer. Case solved!`);
+        unlockAchievement('Case Solver');
+        playSound('victory.wav');
     } else {
-        addDialogue(`> WRONG! ${suspect} is not the killer. Your sanity decreases.`);
+        addDialogue(`> Wrong! ${suspect} was not the killer. The real killer was ${solution.killer}.`);
         gameState.SANITY = Math.max(0, gameState.SANITY - 20);
-        playSound('failure');
-        updateText();
+        playSound('failure.wav');
     }
     
-    saveGame();
+    toggleModal(elements.accuseModal);
+    elements.accuseBtn.classList.add('hidden');
+    
+    // Update case progress
+    gameState.caseProgress[gameState.currentCase].solved = true;
+    gameState.caseProgress[gameState.currentCase].completionTime = Date.now();
+    
+    unlockAchievement('Case Complete');
 }
 
 function unlockAchievement(name) {
-    if (!gameState.achievements.has(name)) {
-        gameState.achievements.add(name);
-        elements.achievements.textContent = `🏆 ${gameState.achievements.size}`;
-        
-        // Show achievement popup
-        elements.achievementName.textContent = name;
+    if (gameState.achievements.has(name)) return;
+    
+    gameState.achievements.add(name);
+    elements.achievements.textContent = `🏆 ${gameState.achievements.size}`;
+    
+    // Show achievement modal
+    elements.achievementName.textContent = name;
+    toggleModal(elements.achievementModal);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
         toggleModal(elements.achievementModal);
-        playSound('achievement');
-        
-        setTimeout(() => toggleModal(elements.achievementModal), 3000);
+    }, 3000);
+    
+    // Play achievement sound
+    if (gameState.soundEnabled) {
+        playSound('achievement.wav');
     }
+    
+    addDialogue(`> Achievement unlocked: ${name}`);
 }
 
 function updateProgressBar() {
-    const progress = gameState.caseProgress[gameState.currentCase];
-    const percent = progress.totalTags > 0 ? (progress.tagsCompleted / progress.totalTags) * 100 : 0;
+    if (!gameState.currentCase) return;
     
-    elements.progressFill.style.width = `${percent}%`;
-    elements.progressText.textContent = `${progress.tagsCompleted}/${progress.totalTags}`;
+    const currentCase = gameState.caseProgress[gameState.currentCase];
+    const totalEvidence = Object.keys(gameState.currentCaseData?.evidence || {}).length;
+    const totalSuspects = Object.keys(gameState.currentCaseData?.suspects || {}).length;
+    
+    const evidenceProgress = gameState.collectedEvidence.length;
+    const suspectProgress = currentCase.suspectsInterviewed.size;
+    
+    const totalProgress = evidenceProgress + suspectProgress;
+    const maxProgress = totalEvidence + totalSuspects;
+    
+    const percentage = maxProgress > 0 ? (totalProgress / maxProgress) * 100 : 0;
+    
+    elements.progressFill.style.width = `${percentage}%`;
+    elements.progressText.textContent = `${totalProgress}/${maxProgress}`;
+    
+    // Update case progress
+    currentCase.evidenceCollected = evidenceProgress;
+    currentCase.tagsCompleted = Object.keys(gameState.chosen).length;
+    currentCase.totalTags = Object.keys(gameState.currentCaseData?.options || {}).length;
+    
+    // Check if case is complete
+    if (totalProgress >= maxProgress && !currentCase.solved) {
+        currentCase.solved = true;
+        currentCase.completionTime = Date.now();
+        unlockAchievement('Case Complete');
+        addDialogue('> All evidence collected and suspects interviewed. You may now make an accusation.');
+        elements.accuseBtn.classList.remove('hidden');
+    }
 }
 
 function addDialogue(text) {
-    elements.dialogueBox.textContent += text + '\n';
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const dialogueElement = document.createElement('div');
+    dialogueElement.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${text}`;
+    dialogueElement.className = 'dialogue-entry';
+    
+    elements.dialogueBox.appendChild(dialogueElement);
     elements.dialogueBox.scrollTop = elements.dialogueBox.scrollHeight;
+    
+    // Limit dialogue entries
+    while (elements.dialogueBox.children.length > 10) {
+        elements.dialogueBox.removeChild(elements.dialogueBox.firstChild);
+    }
+    
+    // Text-to-speech
+    if (gameState.ttsEnabled && 'speechSynthesis' in window) {
+        speak(text.replace('> ', ''));
+    }
 }
 
 function applySanityVisualEffects() {
-    const now = Date.now();
-    if (now - gameState.lastSanityEffect < 2000) return; // Throttle effects
+    const sanity = gameState.SANITY;
     
-    gameState.lastSanityEffect = now;
+    // Update sanity display
+    elements.sanity.textContent = `🧠 SANITY: ${sanity}%`;
     
-    if (gameState.SANITY < 70) {
-        // Add subtle distortion
-        if (window.applyVisualEffect) {
-            window.applyVisualEffect(gameState.SANITY);
-        }
+    // Apply visual effects based on sanity
+    if (sanity < 30) {
+        document.body.style.filter = 'hue-rotate(180deg) saturate(1.5)';
+        addDialogue('> Your vision is becoming distorted...');
+    } else if (sanity < 50) {
+        document.body.style.filter = 'saturate(1.2)';
+    } else {
+        document.body.style.filter = 'none';
     }
     
-    if (gameState.SANITY < 40 && !gameState.hallucinationTriggered) {
-        addDialogue("The room warps for a moment. Reality is soft.");
-        gameState.hallucinationTriggered = true;
-        playSound('hallucination');
+    // Sanity-based text modifications
+    if (sanity < 40 && Math.random() < 0.1) {
+        addDialogue('> You hear whispers in the distance...');
     }
 }
 
@@ -699,6 +824,11 @@ function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('en-US', { hour12: true });
     elements.clock.textContent = `🕒 ${timeString}`;
+    
+    // Update play time
+    if (gameState.currentCase) {
+        gameState.totalPlayTime = Date.now() - gameState.gameStartTime;
+    }
     
     // Night event at 3AM
     if (now.getHours() === 3 && now.getMinutes() < 10 && gameState.SANITY < 60) {
@@ -718,11 +848,23 @@ function saveGame() {
         caseProgress: gameState.caseProgress,
         achievements: Array.from(gameState.achievements),
         soundEnabled: gameState.soundEnabled,
-        ttsEnabled: gameState.ttsEnabled
+        ttsEnabled: gameState.ttsEnabled,
+        totalPlayTime: gameState.totalPlayTime,
+        hintsUsed: gameState.hintsUsed,
+        consecutiveCorrectChoices: gameState.consecutiveCorrectChoices,
+        totalChoices: gameState.totalChoices,
+        gameStartTime: gameState.gameStartTime
     };
     
     localStorage.setItem('unsolved_save', JSON.stringify(saveData));
+    gameState.lastSaveTime = Date.now();
     addDialogue('> Game saved successfully.');
+    
+    // Visual feedback
+    elements.saveGameBtn.style.background = 'var(--success-color)';
+    setTimeout(() => {
+        elements.saveGameBtn.style.background = '';
+    }, 1000);
 }
 
 function loadGame() {
@@ -741,6 +883,11 @@ function loadGame() {
         gameState.achievements = new Set(data.achievements || []);
         gameState.soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
         gameState.ttsEnabled = data.ttsEnabled !== undefined ? data.ttsEnabled : true;
+        gameState.totalPlayTime = data.totalPlayTime || 0;
+        gameState.hintsUsed = data.hintsUsed || 0;
+        gameState.consecutiveCorrectChoices = data.consecutiveCorrectChoices || 0;
+        gameState.totalChoices = data.totalChoices || 0;
+        gameState.gameStartTime = data.gameStartTime || Date.now();
         
         // Update UI
         elements.soundToggle.checked = gameState.soundEnabled;
@@ -749,10 +896,128 @@ function loadGame() {
         
         // Start the loaded case
         startCase(gameState.currentCase);
+        
+        addDialogue('> Game loaded successfully.');
+        unlockAchievement('Returning Detective');
+        
     } catch (error) {
         console.error("Error loading game:", error);
         addDialogue("> Error loading saved game.");
     }
+}
+
+// New helper functions
+function updateHintsDisplay() {
+    const hintsRemaining = gameState.maxHints - gameState.hintsUsed;
+    const hintsElement = document.getElementById('hints-remaining');
+    const hintButton = document.getElementById('get-hint');
+    
+    if (hintsElement) {
+        hintsElement.textContent = `${hintsRemaining}/${gameState.maxHints}`;
+    }
+    
+    if (hintButton) {
+        hintButton.disabled = hintsRemaining <= 0;
+        hintButton.textContent = hintsRemaining > 0 ? 'Get Hint' : 'No Hints Left';
+    }
+}
+
+function getHint() {
+    if (gameState.hintsUsed >= gameState.maxHints) {
+        addDialogue('> No more hints available.');
+        return;
+    }
+    
+    gameState.hintsUsed++;
+    const currentCase = gameState.caseProgress[gameState.currentCase];
+    currentCase.hintsUsed = gameState.hintsUsed;
+    
+    // Provide contextual hints
+    const incompleteTags = Object.keys(gameState.currentCaseData?.options || {}).filter(tag => !gameState.chosen[tag]);
+    const uncollectedEvidence = Object.keys(gameState.currentCaseData?.evidence || {}).filter(evidence => 
+        !gameState.collectedEvidence.includes(evidence)
+    );
+    
+    if (incompleteTags.length > 0) {
+        const randomTag = incompleteTags[Math.floor(Math.random() * incompleteTags.length)];
+        addDialogue(`> Hint: Focus on the "${randomTag}" file.`);
+    } else if (uncollectedEvidence.length > 0) {
+        const randomEvidence = uncollectedEvidence[Math.floor(Math.random() * uncollectedEvidence.length)];
+        addDialogue(`> Hint: Look for "${randomEvidence}" evidence.`);
+    } else {
+        addDialogue('> Hint: You have all the pieces. Review your evidence carefully.');
+    }
+    
+    updateHintsDisplay();
+    unlockAchievement('Seeking Help');
+}
+
+function showStatisticsModal() {
+    const statsModal = document.getElementById('stats-modal');
+    if (!statsModal) return;
+    
+    // Update statistics
+    const totalPlayTime = Math.floor(gameState.totalPlayTime / 1000 / 60); // minutes
+    const casesSolved = Object.values(gameState.caseProgress).filter(case_ => case_.solved).length;
+    const totalAchievements = gameState.achievements.size;
+    const accuracy = gameState.totalChoices > 0 ? 
+        Math.round((gameState.consecutiveCorrectChoices / gameState.totalChoices) * 100) : 0;
+    
+    // Update DOM elements
+    const elements = {
+        'total-play-time': `${totalPlayTime} minutes`,
+        'cases-solved': casesSolved.toString(),
+        'total-achievements': totalAchievements.toString(),
+        'accuracy-rate': `${accuracy}%`,
+        'total-hints': gameState.hintsUsed.toString(),
+        'current-sanity': `${gameState.SANITY}%`
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+    
+    toggleModal(statsModal);
+}
+
+function showStatistics() {
+    const stats = {
+        totalPlayTime: Math.floor(gameState.totalPlayTime / 1000 / 60), // minutes
+        casesSolved: Object.values(gameState.caseProgress).filter(case_ => case_.solved).length,
+        totalAchievements: gameState.achievements.size,
+        averageAccuracy: gameState.totalChoices > 0 ? 
+            Math.round((gameState.consecutiveCorrectChoices / gameState.totalChoices) * 100) : 0,
+        hintsUsed: gameState.hintsUsed
+    };
+    
+    addDialogue(`> Statistics: ${stats.casesSolved} cases solved, ${stats.totalPlayTime} minutes played, ${stats.averageAccuracy}% accuracy.`);
+}
+
+// Enhanced achievement system
+function unlockAchievement(name) {
+    if (gameState.achievements.has(name)) return;
+    
+    gameState.achievements.add(name);
+    elements.achievements.textContent = `🏆 ${gameState.achievements.size}`;
+    
+    // Show achievement modal
+    elements.achievementName.textContent = name;
+    toggleModal(elements.achievementModal);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        toggleModal(elements.achievementModal);
+    }, 3000);
+    
+    // Play achievement sound
+    if (gameState.soundEnabled) {
+        playSound('achievement.wav');
+    }
+    
+    addDialogue(`> Achievement unlocked: ${name}`);
 }
 
 // DLC functions that can be added via extra_data.js

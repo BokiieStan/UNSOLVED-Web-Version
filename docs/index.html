@@ -6,7 +6,7 @@
     <title>UNSOLVED - Detective Game</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@300;400;700&display=swap');
     </style>
 </head>
 <body>
@@ -19,6 +19,7 @@
             <div class="button-group">
                 <button id="load-game" class="hidden">💾 Load Game</button>
                 <button id="settings-btn">⚙️ Settings</button>
+                <button id="stats-btn">📊 Statistics</button>
             </div>
         </div>
 
@@ -39,9 +40,17 @@
                         <h3>🔎 EVIDENCE</h3>
                         <button id="view-evidence">View All</button>
                     </div>
+                    <div class="section">
+                        <h3>💡 HINTS</h3>
+                        <div class="hint-info">
+                            <span id="hints-remaining">3/3</span>
+                            <button id="get-hint">Get Hint</button>
+                        </div>
+                    </div>
                     <div class="action-buttons">
                         <button id="save-game">💾 Save</button>
                         <button id="quit-game">⎻ Quit</button>
+                        <button id="stats-btn-game">📊 Stats</button>
                     </div>
                     <button id="accuse-btn" class="hidden accuse-button">⚠️ ACCUSE SUSPECT</button>
                 </div>
@@ -73,7 +82,45 @@
                     <input type="checkbox" id="tts-toggle" checked>
                     Enable Text-to-Speech
                 </label>
+                <label class="setting">
+                    <input type="checkbox" id="auto-save-toggle" checked>
+                    Auto-save every 5 minutes
+                </label>
                 <button id="close-settings">Close</button>
+            </div>
+        </div>
+
+        <!-- Statistics Modal -->
+        <div id="stats-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Game Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Play Time</span>
+                        <span id="total-play-time" class="stat-value">0 minutes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cases Solved</span>
+                        <span id="cases-solved" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Achievements</span>
+                        <span id="total-achievements" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Accuracy</span>
+                        <span id="accuracy-rate" class="stat-value">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Hints Used</span>
+                        <span id="total-hints" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Current Sanity</span>
+                        <span id="current-sanity" class="stat-value">100%</span>
+                    </div>
+                </div>
+                <button id="close-stats">Close</button>
             </div>
         </div>
 
