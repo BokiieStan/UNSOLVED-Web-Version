@@ -1,44 +1,66 @@
-# UNSOLVED - Detective Game
+# UNSOLVED - Psychological Horror Detective Game
 
-A text-based detective game with a modern interface and immersive gameplay mechanics.
+A deeply psychological horror detective game that explores mental illness, medication dependency, and the fragile nature of reality.
 
-## 🎮 Features
+## 🧠 Psychological Horror Features
 
-### Core Gameplay
-- **Multiple Cases**: Solve different mysteries with varying difficulty levels
-- **Evidence Collection**: Gather clues and evidence to solve cases
-- **Suspect Interviews**: Question suspects to uncover the truth
-- **Sanity System**: Your mental state affects gameplay and visual effects
-- **Achievement System**: Unlock achievements for various accomplishments
+### Mental Health System
+- **Medication Management**: Take pills to maintain your mental stability
+- **Sanity Decay**: Your sanity decreases over time without medication
+- **Psychological Effects**: Visual and audio hallucinations based on mental state
+- **Medication Addiction**: Risk becoming dependent on medication
+- **Reality Distortion**: Screen effects change based on your mental state
 
-### Enhanced UI/UX
-- **Modern Design**: Sophisticated color scheme with smooth animations
-- **Responsive Layout**: Works on desktop and mobile devices
-- **Visual Feedback**: Hover effects, transitions, and visual indicators
-- **Accessibility**: Keyboard shortcuts and focus management
+### Multiple Endings
+- **Descent Into Madness**: Complete loss of sanity and reality
+- **Fragmented Reality**: Partial grip on reality with constant doubt
+- **Medication Dependency**: Solved the case but became addicted
+- **Stable Detective**: Maintained mental health throughout
+- **Standard Ending**: Basic completion with acceptable mental state
 
-### New Features
-- **Hint System**: Get contextual hints when stuck (3 hints per case)
-- **Statistics Tracking**: Monitor your progress and performance
-- **Auto-save**: Automatic saving every 5 minutes
-- **Enhanced Audio**: Background music and sound effects
-- **Text-to-Speech**: Optional voice narration
-- **Progress Tracking**: Visual progress bars and completion indicators
+## 🎮 Core Gameplay
 
-### Gameplay Mechanics
-- **Accuracy Tracking**: Your choices affect your detective rating
-- **Consecutive Correct Choices**: Build streaks for achievements
-- **Case Completion**: Track time and performance for each case
-- **Visual Sanity Effects**: Screen distortion and effects based on mental state
+### Psychological Mechanics
+- **Medication System**: Manage your pills (5 total) to stay stable
+- **Sanity Tracking**: Your mental state affects gameplay and visuals
+- **Hallucination Effects**: Random psychological events when medication is low
+- **Reality Shifts**: Visual distortions and audio cues
+- **Paranoia System**: Feelings of being watched and paranoia
+
+### Detective Work
+- **Evidence Collection**: Gather clues while maintaining mental stability
+- **Suspect Interviews**: Question suspects while managing your condition
+- **Case Solving**: Solve mysteries while fighting your own mind
+- **Multiple Cases**: Different cases with varying psychological impact
+
+## 🎭 Immersive Horror Experience
+
+### Bone-Chilling Intro
+- **Glitch Effects**: "UNSOLVED" title with glitch animations
+- **Typewriter Monologue**: Atmospheric text revealing your character's mental state
+- **Psychological Setup**: Establishes Detective Sarah Chen's mental illness
+- **Automatic Case Start**: Dragged into the first case after the intro
+
+### Visual Horror Effects
+- **Screen Distortions**: Visual effects based on sanity and medication levels
+- **Color Shifts**: Hue rotations and saturation changes
+- **Breathing Background**: Subtle animated background effects
+- **Glitch Animations**: Random visual glitches and distortions
+
+### Audio Horror
+- **Ambient Sounds**: Background horror atmosphere
+- **Hallucination Audio**: Audio cues for psychological effects
+- **Medication Sounds**: Audio feedback for pill consumption
+- **Horror Soundtrack**: Atmospheric background music
 
 ## 🎯 How to Play
 
-1. **Select a Case**: Choose from available cases with different difficulty levels
-2. **Investigate Files**: Click on file tags to make choices and progress
-3. **Interview Suspects**: Question suspects to gather information
-4. **Collect Evidence**: Find and review evidence to build your case
-5. **Use Hints**: Get help when you're stuck (limited to 3 per case)
-6. **Make Accusations**: Accuse the guilty party when you're ready
+1. **Experience the Intro**: Watch the bone-chilling monologue and glitch effects
+2. **Manage Medication**: Take pills to maintain your mental stability
+3. **Solve Cases**: Investigate while managing your psychological state
+4. **Monitor Sanity**: Keep track of your mental health
+5. **Experience Effects**: Visual and audio hallucinations when unstable
+6. **Achieve Endings**: Your mental state determines your ending
 
 ## ⌨️ Controls
 
@@ -46,6 +68,7 @@ A text-based detective game with a modern interface and immersive gameplay mecha
 - **Escape**: Close any open modal
 - **Ctrl/Cmd + S**: Quick save
 - **H**: Get a hint (during gameplay)
+- **M**: Take medication (during gameplay)
 
 ## 🏆 Achievements
 
@@ -55,61 +78,85 @@ A text-based detective game with a modern interface and immersive gameplay mecha
 - **On the Edge**: Reach low sanity levels
 - **Seeking Help**: Use hints
 - **Case Solver**: Solve a case correctly
-- **Case Complete**: Finish a case
 - **Returning Detective**: Load a saved game
+- **Medication Addict**: Become dependent on pills
+- **Voice Hearer**: Experience auditory hallucinations
+- **Shadow Seer**: Experience visual hallucinations
 
-## 🎨 Visual Features
+## 🎨 Visual Horror Features
 
-- **Gradient Backgrounds**: Modern aesthetic with depth
-- **Smooth Animations**: Fade-ins, hover effects, and transitions
-- **Dynamic Effects**: Visual changes based on sanity level
-- **Progress Indicators**: Visual feedback for completion status
-- **Modal System**: Clean, accessible popup dialogs
+- **Glitch Effects**: Text and visual glitches
+- **Dynamic Distortions**: Screen effects based on mental state
+- **Horror Color Palette**: Dark reds, purples, and blues
+- **Breathing Animations**: Subtle background movement
+- **Reality Shifts**: Visual changes during psychological events
 
 ## 📱 Mobile Support
 
-- **Responsive Design**: Adapts to different screen sizes
-- **Touch-Friendly**: Optimized for touch interactions
-- **Mobile Layout**: Reorganized UI for smaller screens
+- **Touch-Optimized**: Designed for touch interactions
+- **Responsive Horror**: Horror effects work on mobile
+- **Mobile Layout**: Optimized for smaller screens
 
-## 🔧 Technical Improvements
+## 🔧 Technical Features
 
-- **Modern CSS**: CSS Grid, Flexbox, and custom properties
-- **Enhanced JavaScript**: Better error handling and performance
-- **Audio System**: Web Audio API integration
-- **Local Storage**: Persistent game saves
-- **Progressive Enhancement**: Works without JavaScript features
+- **Psychological State Tracking**: Complex mental health system
+- **Multiple Ending Logic**: 5 different endings based on mental state
+- **Medication Decay System**: Realistic medication timing
+- **Sanity Decay System**: Mental health deterioration over time
+- **Visual Effect System**: Dynamic screen distortions
+- **Audio Horror System**: Atmospheric sound design
 
-## 🎵 Audio Features
+## 🎵 Audio Horror Features
 
-- **Background Music**: Atmospheric soundtrack
-- **Sound Effects**: Achievement, success, error, and ambient sounds
-- **Text-to-Speech**: Optional voice narration
-- **Audio Controls**: Toggle sound and TTS independently
+- **Ambient Horror**: Atmospheric background sounds
+- **Hallucination Audio**: Audio cues for psychological effects
+- **Medication Sounds**: Audio feedback for pill consumption
+- **Horror Soundtrack**: Dark, atmospheric music
+- **Voice Effects**: Text-to-speech with horror modifications
 
-## 📊 Statistics Tracking
+## 📊 Psychological Statistics
 
-- **Play Time**: Total time spent playing
+- **Sanity Level**: Real-time mental health tracking
+- **Medication Level**: Current medication effectiveness
+- **Pills Remaining**: Number of medication pills left
+- **Psychological Flags**: Tracked mental health events
+- **Ending Achieved**: Which ending you received
+- **Play Time**: Total time spent in the game
 - **Cases Solved**: Number of completed cases
 - **Accuracy Rate**: Percentage of correct choices
-- **Achievements**: Total achievements unlocked
-- **Hints Used**: Number of hints consumed
-- **Current Sanity**: Real-time sanity level
 
 ## 🚀 Getting Started
 
 1. Open `docs/index.html` in a modern web browser
-2. Select a case to begin investigating
-3. Use the hint system if you get stuck
-4. Save your progress regularly
-5. Check statistics to track your performance
+2. Experience the bone-chilling intro sequence
+3. Manage your medication and sanity
+4. Solve cases while maintaining mental stability
+5. Discover which ending your mental state leads to
 
-## 🎭 Game Atmosphere
+## 🎭 Psychological Themes
 
-The game features a dark, atmospheric detective theme with:
-- **Mood Lighting**: Subtle gradients and shadows
-- **Sanity Effects**: Visual distortion as sanity decreases
-- **Ambient Audio**: Background sounds and effects
-- **Immersive UI**: Terminal-inspired interface with modern touches
+The game explores deep psychological themes:
+- **Mental Illness**: Realistic portrayal of medication dependency
+- **Reality vs. Hallucination**: Blurring the line between real and imagined
+- **Medication Addiction**: The double-edged sword of psychiatric medication
+- **Paranoia**: Feelings of being watched and constant suspicion
+- **Isolation**: The lonely nature of detective work and mental illness
 
-Enjoy solving mysteries and becoming the ultimate detective! 🕵️
+## ⚠️ Content Warnings
+
+This game contains:
+- **Psychological Horror**: Mental illness themes
+- **Medication References**: Prescription drug use
+- **Hallucination Content**: Visual and audio distortions
+- **Mental Health Themes**: Realistic portrayal of mental illness
+- **Horror Elements**: Dark atmosphere and disturbing content
+
+## 🧠 Mental Health Awareness
+
+While this game explores psychological horror themes, it's important to remember:
+- Mental illness is a serious medical condition
+- Medication can be life-saving for many people
+- If you're struggling, please seek professional help
+- This game is fictional and for entertainment purposes
+
+Enjoy the descent into psychological horror, detective. 🕵️💊

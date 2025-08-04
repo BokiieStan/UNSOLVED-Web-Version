@@ -1,6 +1,7 @@
 // Game State
 const gameState = {
     SANITY: 100,
+    MEDICATION: 100,
     chosen: {},
     visitedTopics: new Set(),
     hallucinationTriggered: false,
@@ -15,6 +16,7 @@ const gameState = {
     caseProgress: {},
     soundEnabled: true,
     ttsEnabled: true,
+    horrorEffectsEnabled: true,
     lastSanityEffect: 0,
     currentSuspect: null,
     hintsUsed: 0,
@@ -24,14 +26,31 @@ const gameState = {
     caseStartTime: null,
     lastSaveTime: null,
     consecutiveCorrectChoices: 0,
-    totalChoices: 0
+    totalChoices: 0,
+    medicationPills: 5,
+    maxMedicationPills: 5,
+    lastMedicationTime: 0,
+    medicationDecayRate: 2, // % per minute
+    sanityDecayRate: 1, // % per minute when medication is low
+    currentEnding: null,
+    psychologicalFlags: {
+        heardVoices: false,
+        sawShadows: false,
+        realityShift: false,
+        medicationAddiction: false,
+        paranoia: false
+    }
 };
 
 // DOM Elements
 const elements = {
     // Screens
+    introScreen: document.getElementById('intro-screen'),
     caseSelection: document.getElementById('case-selection'),
     mainGame: document.getElementById('main-game'),
+    
+    // Intro
+    startJourneyBtn: document.getElementById('start-journey'),
     
     // Case selection
     caseGrid: document.getElementById('case-grid'),
@@ -52,16 +71,22 @@ const elements = {
     bottomPanel: document.getElementById('bottom-panel'),
     clock: document.getElementById('clock'),
     sanity: document.getElementById('sanity'),
+    medication: document.getElementById('medication'),
     progressBar: document.getElementById('progress-bar'),
     progressFill: document.getElementById('progress-fill'),
     progressText: document.getElementById('progress-text'),
     achievements: document.getElementById('achievements'),
     dialogueBox: document.getElementById('dialogue-box'),
     
+    // Medication
+    medicationLevel: document.getElementById('medication-level'),
+    takeMedicationBtn: document.getElementById('take-medication'),
+    
     // Modals
     settingsModal: document.getElementById('settings-modal'),
     soundToggle: document.getElementById('sound-toggle'),
     ttsToggle: document.getElementById('tts-toggle'),
+    horrorEffectsToggle: document.getElementById('horror-effects-toggle'),
     closeSettings: document.getElementById('close-settings'),
     evidenceModal: document.getElementById('evidence-modal'),
     collectedTab: document.getElementById('collected-tab'),
@@ -81,6 +106,11 @@ const elements = {
     suspectChoices: document.getElementById('suspect-choices'),
     achievementModal: document.getElementById('achievement-modal'),
     achievementName: document.getElementById('achievement-name'),
+    endingModal: document.getElementById('ending-modal'),
+    endingTitle: document.getElementById('ending-title'),
+    endingContent: document.getElementById('ending-content'),
+    restartGameBtn: document.getElementById('restart-game'),
+    viewStatsBtn: document.getElementById('view-stats'),
     statsBtn: document.getElementById('stats-btn'),
     statsBtnGame: document.getElementById('stats-btn-game')
 };
@@ -104,6 +134,13 @@ document.addEventListener('DOMContentLoaded', () => {
             saveGame();
         }
     }, 300000);
+    
+    // Medication and sanity decay
+    setInterval(() => {
+        if (gameState.currentCase) {
+            updateMedicationAndSanity();
+        }
+    }, 60000); // Every minute
 });
 
 function initGame() {
@@ -133,6 +170,9 @@ function initGame() {
 }
 
 function setupEventListeners() {
+    // Intro
+    elements.startJourneyBtn.addEventListener('click', startJourney);
+    
     // Case selection
     elements.loadGameBtn.addEventListener('click', loadGame);
     elements.settingsBtn.addEventListener('click', () => toggleModal(elements.settingsModal));
@@ -149,12 +189,21 @@ function setupEventListeners() {
     elements.closeAccuse.addEventListener('click', () => toggleModal(elements.accuseModal));
     elements.getHint.addEventListener('click', getHint);
     elements.statsBtnGame.addEventListener('click', showStatisticsModal);
+    elements.takeMedicationBtn.addEventListener('click', takeMedication);
     
     // Statistics modal
     const statsModal = document.getElementById('stats-modal');
     const closeStats = document.getElementById('close-stats');
     if (statsModal && closeStats) {
         closeStats.addEventListener('click', () => toggleModal(statsModal));
+    }
+    
+    // Ending modal
+    if (elements.restartGameBtn) {
+        elements.restartGameBtn.addEventListener('click', restartGame);
+    }
+    if (elements.viewStatsBtn) {
+        elements.viewStatsBtn.addEventListener('click', showStatisticsModal);
     }
     
     // Settings
@@ -167,6 +216,10 @@ function setupEventListeners() {
     
     elements.ttsToggle.addEventListener('change', (e) => {
         gameState.ttsEnabled = e.target.checked;
+    });
+    
+    elements.horrorEffectsToggle.addEventListener('change', (e) => {
+        gameState.horrorEffectsEnabled = e.target.checked;
     });
     
     // Tab switching
@@ -208,6 +261,11 @@ function setupEventListeners() {
         if (e.key === 'h' && gameState.currentCase) {
             e.preventDefault();
             getHint();
+        }
+        
+        if (e.key === 'm' && gameState.currentCase) {
+            e.preventDefault();
+            takeMedication();
         }
     });
 }
@@ -579,6 +637,11 @@ function selectOption(tag, choice, correctChoice) {
     if (gameState.SANITY <= 20) {
         unlockAchievement('On the Edge');
     }
+    
+    // Check for psychological effects
+    if (gameState.MEDICATION < 50 && Math.random() < 0.3) {
+        triggerPsychologicalEffect();
+    }
 }
 
 async function updateSuspectsList() {
@@ -719,7 +782,8 @@ async function finalizeAccusation(suspect) {
     gameState.caseProgress[gameState.currentCase].solved = true;
     gameState.caseProgress[gameState.currentCase].completionTime = Date.now();
     
-    unlockAchievement('Case Complete');
+    // Determine ending based on psychological state
+    determineEnding();
 }
 
 function unlockAchievement(name) {
@@ -838,72 +902,228 @@ function updateClock() {
     }
 }
 
-function saveGame() {
-    const saveData = {
-        sanity: gameState.SANITY,
-        chosen: gameState.chosen,
-        currentCase: gameState.currentCase,
-        collectedEvidence: gameState.collectedEvidence,
-        visitedTopics: Array.from(gameState.visitedTopics),
-        caseProgress: gameState.caseProgress,
-        achievements: Array.from(gameState.achievements),
-        soundEnabled: gameState.soundEnabled,
-        ttsEnabled: gameState.ttsEnabled,
-        totalPlayTime: gameState.totalPlayTime,
-        hintsUsed: gameState.hintsUsed,
-        consecutiveCorrectChoices: gameState.consecutiveCorrectChoices,
-        totalChoices: gameState.totalChoices,
-        gameStartTime: gameState.gameStartTime
-    };
+function updateMedicationAndSanity() {
+    const now = Date.now();
+    const timeSinceLastMedication = (now - gameState.lastMedicationTime) / 60000; // minutes
     
-    localStorage.setItem('unsolved_save', JSON.stringify(saveData));
-    gameState.lastSaveTime = Date.now();
-    addDialogue('> Game saved successfully.');
+    // Medication decay
+    if (gameState.lastMedicationTime > 0) {
+        gameState.MEDICATION = Math.max(0, gameState.MEDICATION - (gameState.medicationDecayRate * timeSinceLastMedication));
+    }
     
-    // Visual feedback
-    elements.saveGameBtn.style.background = 'var(--success-color)';
-    setTimeout(() => {
-        elements.saveGameBtn.style.background = '';
-    }, 1000);
+    // Sanity decay when medication is low
+    if (gameState.MEDICATION < 30) {
+        gameState.SANITY = Math.max(0, gameState.SANITY - (gameState.sanityDecayRate * timeSinceLastMedication));
+        
+        // Trigger psychological effects
+        if (gameState.horrorEffectsEnabled && Math.random() < 0.1) {
+            triggerPsychologicalEffect();
+        }
+    }
+    
+    // Update UI
+    updateMedicationDisplay();
+    applySanityVisualEffects();
 }
 
-function loadGame() {
-    const saveData = localStorage.getItem('unsolved_save');
-    if (!saveData) return;
-    
-    try {
-        const data = JSON.parse(saveData);
-        
-        gameState.SANITY = data.sanity || 100;
-        gameState.chosen = data.chosen || {};
-        gameState.currentCase = data.currentCase || "case1";
-        gameState.collectedEvidence = data.collectedEvidence || [];
-        gameState.visitedTopics = new Set(data.visitedTopics || []);
-        gameState.caseProgress = data.caseProgress || {};
-        gameState.achievements = new Set(data.achievements || []);
-        gameState.soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
-        gameState.ttsEnabled = data.ttsEnabled !== undefined ? data.ttsEnabled : true;
-        gameState.totalPlayTime = data.totalPlayTime || 0;
-        gameState.hintsUsed = data.hintsUsed || 0;
-        gameState.consecutiveCorrectChoices = data.consecutiveCorrectChoices || 0;
-        gameState.totalChoices = data.totalChoices || 0;
-        gameState.gameStartTime = data.gameStartTime || Date.now();
-        
-        // Update UI
-        elements.soundToggle.checked = gameState.soundEnabled;
-        elements.ttsToggle.checked = gameState.ttsEnabled;
-        elements.achievements.textContent = `🏆 ${gameState.achievements.size}`;
-        
-        // Start the loaded case
-        startCase(gameState.currentCase);
-        
-        addDialogue('> Game loaded successfully.');
-        unlockAchievement('Returning Detective');
-        
-    } catch (error) {
-        console.error("Error loading game:", error);
-        addDialogue("> Error loading saved game.");
+function takeMedication() {
+    if (gameState.medicationPills <= 0) {
+        addDialogue('> No medication left. You feel the withdrawal setting in...');
+        gameState.psychologicalFlags.medicationAddiction = true;
+        return;
     }
+    
+    gameState.medicationPills--;
+    gameState.MEDICATION = Math.min(100, gameState.MEDICATION + 50);
+    gameState.lastMedicationTime = Date.now();
+    
+    addDialogue('> Medication taken. The voices... they\'re quieter now.');
+    
+    // Visual effect
+    document.body.classList.add('medication-withdrawal');
+    setTimeout(() => {
+        document.body.classList.remove('medication-withdrawal');
+    }, 2000);
+    
+    updateMedicationDisplay();
+    
+    if (gameState.soundEnabled) {
+        playSound('success.wav');
+    }
+}
+
+function updateMedicationDisplay() {
+    if (elements.medicationLevel) {
+        elements.medicationLevel.textContent = `${Math.round(gameState.MEDICATION)}%`;
+    }
+    
+    if (elements.medication) {
+        elements.medication.textContent = `💊 MEDS: ${Math.round(gameState.MEDICATION)}%`;
+    }
+    
+    if (elements.takeMedicationBtn) {
+        elements.takeMedicationBtn.disabled = gameState.medicationPills <= 0;
+        elements.takeMedicationBtn.textContent = gameState.medicationPills > 0 ? 
+            `Take Pill (${gameState.medicationPills})` : 'No Pills Left';
+    }
+}
+
+function triggerPsychologicalEffect() {
+    const effects = [
+        {
+            message: '> You hear whispers in the distance...',
+            visual: 'hallucination-mode',
+            duration: 3000,
+            flag: 'heardVoices'
+        },
+        {
+            message: '> The shadows in the corner... they\'re moving.',
+            visual: 'horror-mode',
+            duration: 2000,
+            flag: 'sawShadows'
+        },
+        {
+            message: '> Reality seems to shift for a moment.',
+            visual: 'medication-withdrawal',
+            duration: 1500,
+            flag: 'realityShift'
+        },
+        {
+            message: '> You feel paranoid. Someone is watching.',
+            visual: 'horror-mode',
+            duration: 4000,
+            flag: 'paranoia'
+        }
+    ];
+    
+    const effect = effects[Math.floor(Math.random() * effects.length)];
+    
+    if (!gameState.psychologicalFlags[effect.flag]) {
+        gameState.psychologicalFlags[effect.flag] = true;
+        addDialogue(effect.message);
+        
+        if (gameState.horrorEffectsEnabled) {
+            document.body.classList.add(effect.visual);
+            setTimeout(() => {
+                document.body.classList.remove(effect.visual);
+            }, effect.duration);
+        }
+        
+        if (gameState.soundEnabled) {
+            playSound('hallucination.wav');
+        }
+    }
+}
+
+function determineEnding() {
+    const sanity = gameState.SANITY;
+    const medication = gameState.MEDICATION;
+    const pillsLeft = gameState.medicationPills;
+    const psychologicalFlags = Object.values(gameState.psychologicalFlags).filter(Boolean).length;
+    
+    let ending;
+    let endingTitle;
+    let endingContent;
+    
+    if (sanity <= 10 && medication <= 10) {
+        ending = 'DESCENT_INTO_MADNESS';
+        endingTitle = 'ENDING: DESCENT INTO MADNESS';
+        endingContent = `
+            <p>You've lost yourself completely.</p>
+            <p>The medication is gone. The voices are constant. Reality has shattered.</p>
+            <p>You solved the case, but at what cost?</p>
+            <p>The department will find you here, muttering to yourself, surrounded by your own madness.</p>
+            <p>Sometimes the greatest mystery is what happens to the detective.</p>
+        `;
+    } else if (sanity <= 30 && psychologicalFlags >= 3) {
+        ending = 'FRAGMENTED_REALITY';
+        endingTitle = 'ENDING: FRAGMENTED REALITY';
+        endingContent = `
+            <p>You solved the case, but your grip on reality is tenuous.</p>
+            <p>The medication helps, but you're not sure what's real anymore.</p>
+            <p>You'll continue working, but always wondering if the voices are real.</p>
+            <p>Some mysteries are better left unsolved.</p>
+        `;
+    } else if (medication <= 20 && pillsLeft === 0) {
+        ending = 'MEDICATION_DEPENDENCY';
+        endingTitle = 'ENDING: MEDICATION DEPENDENCY';
+        endingContent = `
+            <p>You solved the case, but you're now dependent on medication.</p>
+            <p>Without it, the world becomes unbearable.</p>
+            <p>You'll continue solving cases, but always needing that next pill.</p>
+            <p>The cure becomes the disease.</p>
+        `;
+    } else if (sanity >= 80 && medication >= 80) {
+        ending = 'STABLE_DETECTIVE';
+        endingTitle = 'ENDING: STABLE DETECTIVE';
+        endingContent = `
+            <p>You solved the case while maintaining your mental stability.</p>
+            <p>Your medication management was perfect.</p>
+            <p>You'll continue to be an effective detective.</p>
+            <p>Sometimes the greatest victory is staying sane.</p>
+        `;
+    } else {
+        ending = 'STANDARD_ENDING';
+        endingTitle = 'ENDING: STANDARD';
+        endingContent = `
+            <p>You solved the case.</p>
+            <p>Your mental state is... acceptable.</p>
+            <p>You'll continue working, but you'll always remember this case.</p>
+            <p>Some cases change you forever.</p>
+        `;
+    }
+    
+    gameState.currentEnding = ending;
+    showEnding(endingTitle, endingContent);
+}
+
+function showEnding(title, content) {
+    elements.endingTitle.textContent = title;
+    elements.endingContent.innerHTML = content;
+    toggleModal(elements.endingModal);
+    
+    // Play ending sound
+    if (gameState.soundEnabled) {
+        playSound('victory.wav');
+    }
+}
+
+function restartGame() {
+    // Reset game state
+    gameState.SANITY = 100;
+    gameState.MEDICATION = 100;
+    gameState.medicationPills = 5;
+    gameState.psychologicalFlags = {
+        heardVoices: false,
+        sawShadows: false,
+        realityShift: false,
+        medicationAddiction: false,
+        paranoia: false
+    };
+    gameState.currentEnding = null;
+    
+    // Clear case progress
+    Object.keys(gameState.caseProgress).forEach(caseId => {
+        gameState.caseProgress[caseId] = {
+            solved: false,
+            tagsCompleted: 0,
+            totalTags: 0,
+            evidenceCollected: 0,
+            suspectsInterviewed: new Set(),
+            startTime: null,
+            completionTime: null,
+            hintsUsed: 0,
+            accuracy: 0
+        };
+    });
+    
+    // Reset UI
+    elements.endingModal.classList.add('hidden');
+    elements.mainGame.classList.remove('active');
+    elements.introScreen.classList.add('active');
+    
+    // Reset visual effects
+    document.body.className = '';
 }
 
 // New helper functions
@@ -962,6 +1182,7 @@ function showStatisticsModal() {
     const totalAchievements = gameState.achievements.size;
     const accuracy = gameState.totalChoices > 0 ? 
         Math.round((gameState.consecutiveCorrectChoices / gameState.totalChoices) * 100) : 0;
+    const psychologicalFlags = Object.values(gameState.psychologicalFlags).filter(Boolean).length;
     
     // Update DOM elements
     const elements = {
@@ -970,7 +1191,9 @@ function showStatisticsModal() {
         'total-achievements': totalAchievements.toString(),
         'accuracy-rate': `${accuracy}%`,
         'total-hints': gameState.hintsUsed.toString(),
-        'current-sanity': `${gameState.SANITY}%`
+        'current-sanity': `${Math.round(gameState.SANITY)}%`,
+        'current-medication': `${Math.round(gameState.MEDICATION)}%`,
+        'current-ending': gameState.currentEnding || 'None'
     };
     
     Object.entries(elements).forEach(([id, value]) => {
@@ -1078,3 +1301,112 @@ window.loadExtraEvidence = function() {
         "Glass Eye": "No prints. Just staring."
     };
 };
+
+function startJourney() {
+    // Play horror sound
+    if (gameState.soundEnabled) {
+        playSound('nightmare.wav');
+    }
+    
+    // Add psychological effect
+    document.body.classList.add('horror-mode');
+    
+    setTimeout(() => {
+        document.body.classList.remove('horror-mode');
+        elements.introScreen.classList.remove('active');
+        elements.caseSelection.classList.add('active');
+        
+        // Auto-start first case after a delay
+        setTimeout(() => {
+            startCase('case1');
+        }, 2000);
+        
+    }, 3000);
+}
+
+function saveGame() {
+    const saveData = {
+        sanity: gameState.SANITY,
+        medication: gameState.MEDICATION,
+        medicationPills: gameState.medicationPills,
+        lastMedicationTime: gameState.lastMedicationTime,
+        psychologicalFlags: gameState.psychologicalFlags,
+        chosen: gameState.chosen,
+        currentCase: gameState.currentCase,
+        collectedEvidence: gameState.collectedEvidence,
+        visitedTopics: Array.from(gameState.visitedTopics),
+        caseProgress: gameState.caseProgress,
+        achievements: Array.from(gameState.achievements),
+        soundEnabled: gameState.soundEnabled,
+        ttsEnabled: gameState.ttsEnabled,
+        horrorEffectsEnabled: gameState.horrorEffectsEnabled,
+        totalPlayTime: gameState.totalPlayTime,
+        hintsUsed: gameState.hintsUsed,
+        consecutiveCorrectChoices: gameState.consecutiveCorrectChoices,
+        totalChoices: gameState.totalChoices,
+        gameStartTime: gameState.gameStartTime,
+        currentEnding: gameState.currentEnding
+    };
+    
+    localStorage.setItem('unsolved_save', JSON.stringify(saveData));
+    gameState.lastSaveTime = Date.now();
+    addDialogue('> Game saved successfully.');
+    
+    // Visual feedback
+    elements.saveGameBtn.style.background = 'var(--success-color)';
+    setTimeout(() => {
+        elements.saveGameBtn.style.background = '';
+    }, 1000);
+}
+
+function loadGame() {
+    const saveData = localStorage.getItem('unsolved_save');
+    if (!saveData) return;
+    
+    try {
+        const data = JSON.parse(saveData);
+        
+        gameState.SANITY = data.sanity || 100;
+        gameState.MEDICATION = data.medication || 100;
+        gameState.medicationPills = data.medicationPills || 5;
+        gameState.lastMedicationTime = data.lastMedicationTime || 0;
+        gameState.psychologicalFlags = data.psychologicalFlags || {
+            heardVoices: false,
+            sawShadows: false,
+            realityShift: false,
+            medicationAddiction: false,
+            paranoia: false
+        };
+        gameState.chosen = data.chosen || {};
+        gameState.currentCase = data.currentCase || "case1";
+        gameState.collectedEvidence = data.collectedEvidence || [];
+        gameState.visitedTopics = new Set(data.visitedTopics || []);
+        gameState.caseProgress = data.caseProgress || {};
+        gameState.achievements = new Set(data.achievements || []);
+        gameState.soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
+        gameState.ttsEnabled = data.ttsEnabled !== undefined ? data.ttsEnabled : true;
+        gameState.horrorEffectsEnabled = data.horrorEffectsEnabled !== undefined ? data.horrorEffectsEnabled : true;
+        gameState.totalPlayTime = data.totalPlayTime || 0;
+        gameState.hintsUsed = data.hintsUsed || 0;
+        gameState.consecutiveCorrectChoices = data.consecutiveCorrectChoices || 0;
+        gameState.totalChoices = data.totalChoices || 0;
+        gameState.gameStartTime = data.gameStartTime || Date.now();
+        gameState.currentEnding = data.currentEnding || null;
+        
+        // Update UI
+        elements.soundToggle.checked = gameState.soundEnabled;
+        elements.ttsToggle.checked = gameState.ttsEnabled;
+        elements.horrorEffectsToggle.checked = gameState.horrorEffectsEnabled;
+        elements.achievements.textContent = `🏆 ${gameState.achievements.size}`;
+        
+        // Start the loaded case
+        startCase(gameState.currentCase);
+        
+        addDialogue('> Game loaded successfully.');
+        unlockAchievement('Returning Detective');
+        
+    } catch (error) {
+        console.error("Error loading game:", error);
+        addDialogue("> Error loading saved game.");
+    }
+}
