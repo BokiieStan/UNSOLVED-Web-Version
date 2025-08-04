@@ -122,6 +122,7 @@ const soundBuffers = {};
 
 // Initialize the game
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Game initializing...');
     initGame();
     setupEventListeners();
     initAudio();
@@ -141,9 +142,55 @@ document.addEventListener('DOMContentLoaded', () => {
             updateMedicationAndSanity();
         }
     }, 60000); // Every minute
+    
+    // Debug: Check if intro screen is visible
+    console.log('Intro screen element:', elements.introScreen);
+    console.log('Start journey button:', elements.startJourneyBtn);
+    console.log('Intro screen classes:', elements.introScreen?.classList);
+    
+    // Test intro screen functionality
+    testIntroScreen();
 });
 
+function testIntroScreen() {
+    console.log('Testing intro screen...');
+    
+    // Check if intro screen exists
+    if (!elements.introScreen) {
+        console.error('Intro screen not found!');
+        return;
+    }
+    
+    // Check if start journey button exists
+    if (!elements.startJourneyBtn) {
+        console.error('Start journey button not found!');
+        return;
+    }
+    
+    // Check if intro screen is visible
+    const isVisible = elements.introScreen.classList.contains('active');
+    console.log('Intro screen visible:', isVisible);
+    
+    // Add a fallback click handler
+    elements.startJourneyBtn.onclick = function() {
+        console.log('Fallback start journey clicked!');
+        startJourney();
+    };
+    
+    // Add a test button if needed
+    if (!isVisible) {
+        console.log('Intro screen not visible, making it visible...');
+        elements.introScreen.classList.add('active');
+        elements.caseSelection.classList.remove('active');
+        elements.mainGame.classList.remove('active');
+    }
+    
+    console.log('Intro screen test complete');
+}
+
 function initGame() {
+    console.log('Initializing game...');
+    
     // Initialize case progress
     Object.keys(gameState.cases).forEach(caseId => {
         gameState.caseProgress[caseId] = {
@@ -167,11 +214,27 @@ function initGame() {
     
     // Initialize achievements
     unlockAchievement('First Steps');
+    
+    // Ensure intro screen is visible
+    if (elements.introScreen) {
+        elements.introScreen.classList.add('active');
+        elements.caseSelection.classList.remove('active');
+        elements.mainGame.classList.remove('active');
+    }
+    
+    console.log('Game initialized');
 }
 
 function setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     // Intro
-    elements.startJourneyBtn.addEventListener('click', startJourney);
+    if (elements.startJourneyBtn) {
+        elements.startJourneyBtn.addEventListener('click', startJourney);
+        console.log('Start journey button event listener added');
+    } else {
+        console.error('Start journey button not found!');
+    }
     
     // Case selection
     elements.loadGameBtn.addEventListener('click', loadGame);
@@ -267,7 +330,25 @@ function setupEventListeners() {
             e.preventDefault();
             takeMedication();
         }
+        
+        // Skip intro screen if needed
+        if (e.key === 'Enter' && elements.introScreen.classList.contains('active')) {
+            e.preventDefault();
+            console.log('Skipping intro screen with Enter key');
+            startJourney();
+        }
+        
+        // Debug: Show intro screen if hidden
+        if (e.key === 'i' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            console.log('Debug: Showing intro screen');
+            elements.introScreen.classList.add('active');
+            elements.caseSelection.classList.remove('active');
+            elements.mainGame.classList.remove('active');
+        }
     });
+    
+    console.log('Event listeners set up');
 }
 
 function initAudio() {
@@ -1303,6 +1384,8 @@ window.loadExtraEvidence = function() {
 };
 
 function startJourney() {
+    console.log('Start journey clicked!');
+    
     // Play horror sound
     if (gameState.soundEnabled) {
         playSound('nightmare.wav');

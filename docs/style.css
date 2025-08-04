@@ -69,6 +69,10 @@ body {
     background: linear-gradient(45deg, var(--horror-dark), #000);
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
 }
 
 #intro-screen::before {
@@ -95,6 +99,10 @@ body {
     position: relative;
     max-width: 800px;
     padding: 2rem;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 12px;
+    border: 2px solid var(--horror-red);
+    box-shadow: 0 0 30px rgba(139, 0, 0, 0.5);
 }
 
 .glitch-container {
@@ -218,6 +226,7 @@ body {
     position: relative;
     overflow: hidden;
     animation: pulseHorror 2s infinite;
+    font-family: inherit;
 }
 
 .horror-btn::before {
@@ -244,6 +253,15 @@ body {
 @keyframes pulseHorror {
     0%, 100% { box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7); }
     50% { box-shadow: 0 0 0 20px rgba(139, 0, 0, 0); }
+}
+
+/* Ensure intro screen is visible by default */
+#intro-screen.active {
+    display: flex !important;
+}
+
+#intro-screen:not(.active) {
+    display: none !important;
 }
 
 /* Medication System */
